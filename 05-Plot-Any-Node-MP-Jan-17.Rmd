@@ -1,0 +1,329 @@
+---
+title: "Create Node - Sensor Status timelines for all node(s) in a complete dataset"
+author: "Madhavi Polisetti"
+date: "01/17/2019"
+output: pdf_document
+---
+
+```{r}
+load.libraries = c('dplyr','lubridate',"visdat","reshape2","scales",'tidyverse','plyr','ggplot', 'readr')
+sapply(load.libraries, require, character = TRUE)
+setwd("~/Desktop/UrbanCCD/Step 1 - Results")
+```
+
+```{r}
+  #Read Node list
+  datapath = "/Volumes/MacBKP/NodeList.csv"
+  node.id.list = as.data.frame( read.csv(file=datapath, header=FALSE))
+  head(node.id.list)
+  #View(node.id.list)
+```
+
+
+```{r}
+# Read all Sensor information
+inputfilename =  "sensors.csv" 
+datapath = "Node-inputs"
+sensor.list.main = read.csv(paste(datapath, inputfilename, sep = "/"), stringsAsFactors = FALSE)
+head(sensor.list.main)
+
+#Filter out list of sensors we care about -- All the "Sensing" sensors
+sensor.list1 = filter(sensor.list.main, grepl("sensing", ontology, fixed = TRUE))
+nrow(sensor.list1)
+
+#Create a unique key to resperesent each sensor type-subsystem-parametere combination
+sensor.list1$sensorkey <- paste(sensor.list1$subsystem , sensor.list1$sensor  , sensor.list1$parameter)
+head(sensor.list1["sensorkey"])
+
+#Pick the sensor columns we need
+sensorcols = c("hrf_minval", "hrf_maxval", "sensorkey")
+sensor.list = sensor.list1 %>% select(sensorcols)
+```
+
+
+```{r}
+#Read 12 Monthly folders. Split each data.csv into node-wise files. These files are in "node-wise""
+createMonthlyNodeOutputs()
+```
+
+```{r}
+#Combine 12 files for each Node into YearlyNodeFiles. These combined node files are
+combineNodeFilesandOuput()
+```
+ 
+
+```{r}
+createMonthlyNodeOutputs = function() {
+  
+  for (i in 3:3) {
+   
+    datapath2 = "/Volumes/MacBKP"
+    datapath = paste(datapath2, i, sep = "/")
+    datapath3 = "/Volumes/MacBKP/node-wise/" 
+    
+    options(stringsAsFactors = FALSE)
+    node.data = read_csv(paste(datapath, "data.csv.gz", sep = "/"), col_types = "ccccccc")
+    node.idlist = split(node.data, node.data$node_id)
+    
+    mapply(write_csv, node.idlist, path = paste(datapath3,paste(i, names(node.idlist)  , 'csv', sep = "."), sep="/"))
+     
+    
+    rm(list = ls())
+    gc(reset = T)
+  }
+
+}
+```
+ 
+
+```{r}
+combineNodeFilesandOuput = function()  {
+    for (row in 1:nrow(node.id.list)) {
+    
+        #Read each node id
+        currentNodeID = node.id.list[row,]
+        print("Combining files for ")
+        print( currentNodeID)
+        
+        #Set Datapath for input and output folders
+        datapath2 = "/Volumes/MacBKP"
+        datapathIP = paste(datapath2, "node-wise", sep = "/")
+        datapathOP = paste(datapath2, "YearlyNodeFiles", sep = "/")
+        
+        options(stringsAsFactors = FALSE)
+        
+        myfulldata = data.frame()
+        #For loop to look for 12 files for this node and rbind.
+        for (i in 1:12) {
+           #Read each months node file for this node
+            filename = paste(datapathIP,paste(i, currentNodeID  , 'csv', sep = "."), sep = "/")
+            if (file.exists(filename))
+                node.data.temp = data.frame()
+                node.data.temp = read.csv(file=filename, header=TRUE)
+            
+            if (exists( 'node.data.temp') ) 
+                myfulldata = rbind(myfulldata, node.data.temp) 
+            
+            View(node.data)
+        }
+        
+        OPFile = paste(datapathOP,paste (currentNodeID, 'csv', sep = "."),sep="/")
+        #Write 1 Outputfile for each node
+        write_csv( myfulldata, OPFile)
+        createNodeFindings(currentNodeID)
+      }
+  
+}
+```
+
+
+```{r}
+processNode = function(node.data) {
+
+#Create a unique sensor key in the nodes dataset
+node.data$sensorkey <-  paste(node.data$subsystem , node.data$sensor  , node.data$parameter)
+
+print('number of rows in full node file')
+print(nrow(node.data))
+# Define which columns to keep from the original data
+colpick1 = c("timestamp", "node_id", "value_hrf", "sensorkey")
+
+#Picking the node that the team is cross-checking with each other
+node.data1 = node.data%>%  select(colpick1)  
+
+
+#Filter only the sensors that we need (Sensor.list has the list of sensors we care about)
+node.data.filtered = node.data1 %>%
+  filter((c(node.data1$sensorkey) %in%sensor.list$sensorkey)) 
+
+print('number of rows filtering only sensing readings')
+print(nrow(node.data.filtered))
+
+#Join with sensor.list dataframe to bring back columns hrf_min hrf_max
+node.data.joined = merge(x = node.data.filtered, y = sensor.list, by = "sensorkey", all.x = TRUE)
+node.data.joined$value_hrf = as.numeric(node.data.joined$value_hrf)
+
+#Drop rows with NA in the value_hrf column
+node.data.joined = drop_na(node.data.joined, value_hrf)
+print('number of rows after joining with Sensors.csv and dropping NAs')
+print(nrow(node.data.joined))
+View(node.data.joined)
+
+# Create indicator "WithinBounds" to indicate if each individual reading is within specified bounds for the sensor
+node.data.joined.2 = node.data.joined %>% 
+  mutate(withinBounds = ((value_hrf - hrf_minval) > 0 | is.na(hrf_minval) ) 
+         #within Lower bound or Lower Bound spaces``
+                        & ((hrf_maxval - value_hrf) > 0) | is.na(hrf_maxval))
+         #within Upper bound or Upper Bound spaces
+
+#View(node.data.joined.2)
+# Generate the list of dataframes for each sensor, parameter, and subsystem combination.
+node.sensor = split(node.data.joined.2, with(node.data.joined.2, interaction(sensorkey)), drop = TRUE)
+
+#View(node.sensor)
+ 
+# Keep only Timestamp and Sensor readings
+node.sensor.reduce = lapply(node.sensor, function(x) x[(names(x) %in% c("timestamp", "value_hrf",'withinBounds'))])
+#View(node.sensor.reduce)
+ 
+# Use the defined functions above to calculate the average, min and max values over the period
+node.sensor.aggregated = lapply(node.sensor.reduce, AggredateData)
+View(node.sensor.aggregated)
+#Final dataframe - Keep only the labels needed
+node.sensor.final = lapply(node.sensor.aggregated, function(x) x[(names(x) %in% c("dateday",   "sensorStatus"))])
+#View(node.sensor.final)
+# Rename the columns for each dataframe inside the list
+# so that dateday is the timestamp and the the sensorStatus is in the format of (sensor name).(parameter name).(subsystem name)
+
+node.sensor.final.renamed = lapply(names(node.sensor.final), 
+                            function(x) setNames(node.sensor.final[[x]], c(names(node.sensor.final[[x]])[1], x)))
+View(node.sensor.final.renamed)
+#Final merged dataframe with sensor-wise-Status for each day
+node.sensor.final.merged = purrr::reduce(node.sensor.final.renamed, full_join, by = "dateday")
+
+View(node.sensor.final.merged)
+return(node.sensor.final.merged)
+}
+```
+
+
+```{r}
+
+# Define function to calculate average value, maximum and minimum over a certian time interval
+# Default is over 1 day
+AggredateData = function(data, timeslot = "1 day") {
+   
+  data$timestamp = ymd_hms(data$timestamp)
+  
+  data$dateday = cut(data$timestamp, breaks =  timeslot)
+  
+   aggrData = data %>% 
+    mutate(dateday = floor_date(timestamp, unit=timeslot)) %>% 
+    group_by(dateday) %>% 
+    dplyr::summarize(
+       maxReadingForTimePeriod = max(value_hrf,na.rm = TRUE)
+     , minReadingForTimePeriod = min(value_hrf,na.rm = TRUE)
+     , flatlined = (max(value_hrf,na.rm = TRUE) - min(value_hrf,na.rm = TRUE) == 0)
+     , CntOutOfBounds = sum(withinBounds == FALSE)
+     , CntWithinBounds = sum(withinBounds == TRUE)
+     , TotalReadingsForTimePeriod = n()
+     , WithinBounds = (sum(withinBounds == TRUE) > 0)
+     , sensorStatus = case_when(
+      (max(value_hrf) - min(value_hrf) == 0) & (sum(withinBounds == TRUE) == 0) ~ 3,
+      (max(value_hrf) - min(value_hrf) == 0) ~ 1, 
+      (sum(withinBounds == TRUE) == 0) ~ 2, 
+      (sum(withinBounds == TRUE) > 0) ~ 0, 
+      TRUE ~ 5)) 
+   
+  return(aggrData)
+}
+
+```
+
+```{r}
+createVis = function(df, nodeid) {
+  #color scale
+  col<-c("grey","green","yellow","orange","red")
+  
+  #convert dataframe to column-wise datafram
+  data.m <- melt(df, id ="dateday" )
+  
+  
+  #the ggplot
+    p<-ggplot(data.m,aes(x=variable,y=dateday))+
+    #tile layer
+    geom_tile( size=0.1,aes(fill=factor(value))) +
+ 
+  labs(x="",y="")+
+    #setting the color
+    scale_fill_manual(expand=c(0,0),
+        values=c("palegreen","yellow","orange","palered"),
+        breaks=c(NA, 0, 1, 2, 3),
+        labels=c("Missing","Normal", "Flatlined", "OutOfBounds", "AbNormal"),
+        name = paste( " Visualization for NODE: ", nodeid , sep="")
+        ) + theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  
+  theme(
+#bold font for both axis text
+axis.text=element_text(face="bold"),
+#set thickness of axis ticks
+axis.ticks=element_line(size=0.4),
+#remove plot background
+plot.background=element_blank(),
+#remove plot border
+panel.border=element_blank())
+    
+datapath2 = "Node-outputs"
+filename = paste("node_" , nodeid , "heatmap.png", sep = "")
+    
+ ggsave(filename=paste(datapath2, filename, sep = "/"),plot = p,dpi=150,type="cairo")
+
+}
+```
+
+
+```{r}
+writeNodeWiseData = function(node.data) {
+  
+ 
+df = processNode(node.data)
+
+date.seq = data.frame(seq(as.Date("2018/1/1"), as.Date("2018/12/31"), "days"))
+colnames(date.seq) = 'dateday'
+
+df$dateday = ymd(df$dateday)
+
+final.df = merge(date.seq, df, by='dateday', all.x=TRUE)
+ 
+View(final.df)
+
+return (final.df)
+}
+
+```
+
+
+
+```{r}
+createNodeFindings = function( nodeid) {
+  inputfilename = paste( nodeid , "csv", sep = ".")
+  #datapath = "Node-inputs"
+  datapath = "/Volumes/MacBKP/YearlyNodeFiles"
+   
+  node.1 = read.csv(paste(datapath, inputfilename, sep = "/"), stringsAsFactors = FALSE)
+  
+  node.OP <-  writeNodeWiseData(node.1)
+  #createVis(node.OP, nodeid)
+  
+  datapath2 = "Node-outputs"
+  filename = paste("node_" , nodeid , "_Output.csv", sep = "")
+  write.csv(node.OP, file = paste(datapath2, filename, sep = "/"), row.names = FALSE)
+  
+  return (node.OP)
+}
+```
+
+```{r}
+#Main execution
+#Everything else is a function
+
+#Set node_id for which we need Visualization
+nodeid="001e0610ba15"
+#nodeid = '001e0610ee33'
+ 
+#Setup two folders in the working directory : Node-outputs & Node-inputs.
+#Name the inputfile node-nodeid.csv
+
+#Process below will writeout 
+#       1. A csv file indicating various sensor statuses.
+#       2. heatmap for Sensor functiioning named heatmap.png
+node.OP = createNodeFindings(nodeid)
+
+
+```
+
+
+
+
+
+ 

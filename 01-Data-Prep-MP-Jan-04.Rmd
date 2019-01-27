@@ -1,0 +1,270 @@
+---
+title: "Data-Prep-MP"
+author: "Madhavi Polisetti"
+date: "01/04/2019"
+output: pdf_document
+---
+
+```{r}
+load.libraries = c('dplyr', 'lubridate',"visdat","reshape2","scales")
+sapply(load.libraries, require, character = TRUE)
+```
+
+```{r}
+datapath = "/Users/mspolisetti/Desktop/UrbanCCD/WaggleTools/complete.weekly.11.26"
+sensor.data.weekly.11.26 = read.csv(paste(datapath, "data.csv.gz", sep = "/"), stringsAsFactors = FALSE)
+
+head(node.data)
+```
+
+```{r}
+# Read in all neccssary libraries
+load.libraries = c('dplyr', 'lubridate', 'naniar')
+sapply(load.libraries, require, character = TRUE)
+```
+
+```{r}
+# Read all Sensor information
+sensor.list.main = read.csv(paste(datapath, "sensors.csv", sep = "/"), stringsAsFactors = FALSE)
+nrow(sensor.list.main)
+
+#Filter out list of sensors we care about -- All the "Sensing" sensors
+sensor.list1 = filter(sensor.list.main, grepl("sensing", ontology, fixed = TRUE))
+nrow(sensor.list1)
+
+#Create a unique key to resperesent each sensor type-subsystem-parametere combination
+sensor.list1$sensorkey <- paste(sensor.list1$subsystem , sensor.list1$sensor  , sensor.list1$parameter)
+head(sensor.list1["sensorkey"])
+
+#Pick the sensor columns we need
+sensorcols = c("hrf_minval", "hrf_maxval", "sensorkey")
+sensor.list = sensor.list1 %>% select(sensorcols)
+
+```
+
+```{r}
+# Define columns to keep from the original weekly node readings data
+colpick = c("timestamp", "node_id", "value_hrf", "sensor", "parameter", "subsystem")
+
+# Pick out the columns we need
+# dpylr package is needed
+node.data = sensor.data.weekly.11.26 %>% select(colpick)
+```
+
+```{r}
+#Create a unique sensor key in the nodes dataset
+node.data$sensorkey <-  paste(node.data$subsystem , node.data$sensor  , node.data$parameter)
+```
+
+```{r}
+library(tidyverse)
+# Define which columns to keep from the original data
+colpick1 = c("timestamp", "node_id", "value_hrf", "sensorkey")
+
+#Picking the node that the team is cross-checking with each other
+node.data1 = node.data%>% filter(node_id == "001e0610ee33") %>% select(colpick1)  
+
+#Drop rows with NA in the value_hrf column
+
+#Filter only the sensors that we need (Sensor.list has the list of sensors we care about)
+node.data.filtered = node.data1 %>%
+  filter((c(node.data1$sensorkey) %in%sensor.list$sensorkey))%>%drop_na(value_hrf)
+
+#Join with sensor.list dataframe to bring back columns hrf_min hrf_max
+node.data.joined = merge(x = node.data.filtered, y = sensor.list, by = "sensorkey", all.x = TRUE)
+node.data.joined$value_hrf = as.numeric(node.data.joined$value_hrf)
+
+# Create indicator "WithinBounds" to indicate if each individual readings is within specified bounds for the sensor
+node.data.joined = node.data.joined %>% 
+  mutate(withinBounds = ((value_hrf - hrf_minval) > 0 | is.na(hrf_minval)) 
+         #within Lower bound or Lower Bound spaces``
+                        & ((hrf_maxval - value_hrf) > 0) | is.na(hrf_maxval))
+         #within Upper bound or Upper Bound spaces
+```
+
+```{r}
+View(node.data.joined)
+```
+ 
+ 
+
+```{r}
+
+# Define function to calculate average value, maximum and minimum over a certian time interval
+# Default is over 1 day
+AggredateData = function(data, timeslot = "1 day") {
+   
+  data$timestamp = ymd_hms(data$timestamp)
+  
+  data$dateday = cut(data$timestamp, breaks =  timeslot)
+  
+   aggrData = data %>% 
+    mutate(dateday = floor_date(timestamp, unit=timeslot)) %>% 
+    group_by(dateday) %>% 
+    summarize(
+       maxReadingForTimePeriod = max(value_hrf,na.rm = TRUE)
+     , minReadingForTimePeriod = min(value_hrf,na.rm = TRUE)
+     , flatlined = (max(value_hrf,na.rm = TRUE) - min(value_hrf,na.rm = TRUE) == 0)
+     , CntOutOfBounds = sum(withinBounds == FALSE)
+     , CntWithinBounds = sum(withinBounds == TRUE)
+     , TotalReadingsForTimePeriod = n()
+     , WithinBounds = (sum(withinBounds == TRUE) > 0)
+  )
+  
+  return(aggrData)
+}
+
+```
+
+
+```{r}
+#bmp180 - pressure
+# Generate the list of dataframes for each sensor, parameter, and subsystem  
+node.sensor = split(node.data.joined, with(node.data.joined, interaction(sensorkey)), drop = TRUE)
+```
+
+```{r}
+View(node.sensor)
+```
+
+```{r}
+# Keep only Timestamp and Sensor readings
+node.sensor.reduce = lapply(node.sensor, function(x) x[(names(x) %in% c("timestamp", "value_hrf",'withinBounds'))])
+```
+
+```{r}
+View(node.sensor.reduce)
+```
+
+```{r}
+# Use the defined functions above to calculate the average, min and max values over the period
+node.sensor.aggregated = lapply(node.sensor.reduce, AggredateData)
+
+```
+
+```{r}
+View(node.sensor.aggregated)
+
+```
+
+```{r}
+# Keep only Timestamp and Node label
+node.sensor.flatlined = lapply(node.sensor.aggregated, function(x) x[(names(x) %in% c("dateday",   "flatlined"))])
+
+node.sensor.WithinBounds = lapply(node.sensor.aggregated, function(x) x[(names(x) %in% c("dateday",    "WithinBounds"))])
+
+node.sensor.CntOutOfBounds = lapply(node.sensor.aggregated, function(x) x[(names(x) %in% c("dateday",   "CntOutOfBounds" ))])
+ 
+```
+ 
+
+```{r}
+# Rename the columns for each dataframe inside the list
+# so that datehour is the timestamp and the the recorded value is in the format of (sensor name).(parameter name).(subsystem name)
+
+
+node.sensor.flatlined.final = lapply(names(node.sensor.flatlined), 
+                            function(x) setNames(node.sensor.flatlined[[x]], c(names(node.sensor.flatlined[[x]])[1], x)))
+
+
+node.sensor.WithinBounds.final = lapply(names(node.sensor.WithinBounds), 
+                            function(x) setNames(node.sensor.WithinBounds[[x]], c(names(node.sensor.WithinBounds[[x]])[1], x)))
+
+
+node.sensor.CntOutOfBounds.final = lapply(names(node.sensor.CntOutOfBounds), 
+                            function(x) setNames(node.sensor.CntOutOfBounds[[x]], c(names(node.sensor.CntOutOfBounds[[x]])[1], x)))
+```
+
+```{r}
+View(node.sensor.WithinBounds.final)
+View(node.sensor.flatlined.final)
+View(node.sensor.CntOutOfBounds.final)
+```
+
+
+
+```{r}
+# Collapse the list of dataframe to a single dataframe
+node.sensor.WithinBounds.final.merged = purrr::reduce(node.sensor.WithinBounds.final, left_join, by = "dateday")
+
+node.sensor.flatlined.final.merged = purrr::reduce(node.sensor.flatlined.final, left_join, by = "dateday")
+
+
+node.sensor.CntOutOfBounds.final.merged = purrr::reduce(node.sensor.CntOutOfBounds.final, left_join, by = "dateday")
+```
+
+```{r}
+View(node.sensor.WithinBounds.final.merged)
+View(node.sensor.flatlined.final.merged)
+View(node.sensor.CntOutOfBounds.final.merged)
+
+```
+
+
+```{r}
+# Export the processed data to a csv file for further analysis
+#write.csv(node.sensor.merged, file = "node_merged_Nov.csv", row.names = FALSE)
+ require(plyr)
+ library(ggplot2)
+ library(scales)
+
+  
+ 
+data <-node.sensor.WithinBounds.final.merged
+data.m <- melt(data, id ="dateday" )
+
+data.m <- ddply(data.m, .(variable), transform, NormalAbnormal = as.numeric(value))
+#View(data.m)
+ p <- ggplot(data.m, aes(variable, dateday))  +
+           geom_tile(aes(fill = NormalAbnormal), colour = "white") 
+ p + scale_fill_gradient(low = "black", high = "white", limits = c(0,1)) + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+```{r}
+View(data.m )
+```
+
+```{r}
+ data <-node.sensor.WithinBounds.final.merged
+ data.m <- melt(data)
+ View(data)
+ View(data.m)
+ data.m <- ddply(data.m, .(variable), transform, rescale = rescale(value))
+ View(data.m)
+ p <- ggplot(data.m, aes(variable,dateday)) + 
+         geom_tile(aes(fill = rescale), colour = "white") 
+ p + scale_fill_gradient(low = "white", high = "steelblue")
+```
+ 
+```{r}
+createVisAbnormal <-  function(data) {
+
+data.m <- melt(data, id ="dateday" )
+data.m <- ddply(data.m, .(variable), transform, NormalAbnormal = as.numeric(value))
+
+ p <- ggplot(data.m, aes(variable, dateday))  +
+           geom_tile(aes(fill = NormalAbnormal), colour = "white") 
+ p + scale_fill_gradient(low = "black", high = "white", limits = c(0,1)) + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+}
+
+createVisFlatLined <-  function(data) {
+
+data.m <- melt(data, id ="dateday" )
+data.m <- ddply(data.m, .(variable), transform, Flatlined = as.numeric(value))
+
+ p <- ggplot(data.m, aes(variable, dateday))  +
+           geom_tile(aes(fill = Flatlined), colour = "white") 
+ p + scale_fill_gradient(low = "black", high = "white", limits = c(0,1)) + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+}
+
+```
+
+```{r}
+#createVisAbnormal(node.sensor.WithinBounds.final.merged)
+#createVisFlatLined(node.sensor.flatlined.final.merged)
+
+#View(node.sensor.WithinBounds.final.merged)
+vis_miss(node.sensor.WithinBounds.final.merged, warn_large_data = FALSE) +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
