@@ -30,11 +30,11 @@ AoT nodes collect data in Time Series format. Sensor readings represent the chan
 
 ### Data Storage : 
 
-Our data was typically big, with complete CSV file needing storage of around 200GB. Data for this project was stored in a Cassandra database. Data is streamed from the Database into CSV files for public use. 
+Complete CSV file needs storage of around 200GB. Data for this project was stored in a Cassandra database. Data is streamed from the Database into CSV files for public use. 
 
 ### Output of our Analysis : 
 
-Goal of our project was to identify failures in the nodes and there by hone into various factors that potentially impact failure of these nodes over time.  Output of the analysis was saved in GitHub and presented to our project leader. This analysis will further be used in future work that involves predicting remaining useful life(RUL) of these AoT Nodes.
+Goal of our project was to identify failures in the nodes and there by hone into various factors that potentially impact failure of these nodes over time.  This analysis will further be used in future work that involves installing second batch of AoT Nodes.
 
 Our team will writing a paper detailing our work towards the summer of 2019.
 
