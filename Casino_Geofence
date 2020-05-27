@@ -1,0 +1,161 @@
+{
+  "geometry": {
+    "coordinates": [
+      [
+        [
+          -115.176754,
+          36.093454
+        ],
+        [
+          -115.179801,
+          36.092371
+        ],
+        [
+          -115.180158,
+          36.090579
+        ],
+        [
+          -115.179696,
+          36.090743
+        ],
+        [
+          -115.179185,
+          36.089806
+        ],
+        [
+          -115.179666,
+          36.089465
+        ],
+        [
+          -115.178318,
+          36.086988
+        ],
+        [
+          -115.176892,
+          36.086803
+        ],
+        [
+          -115.176033,
+          36.091113
+        ],
+        [
+          -115.174561,
+          36.091636
+        ],
+        [
+          -115.174871,
+          36.090083
+        ],
+        [
+          -115.174118,
+          36.089986
+        ],
+        [
+          -115.173919,
+          36.090981
+        ],
+        [
+          -115.173396,
+          36.090913
+        ],
+        [
+          -115.1747,
+          36.093308
+        ],
+        [
+          -115.175156,
+          36.092986
+        ],
+        [
+          -115.176185,
+          36.093934
+        ],
+        [
+          -115.174058,
+          36.095441
+        ],
+        [
+          -115.174813,
+          36.096137
+        ],
+        [
+          -115.174422,
+          36.09681
+        ],
+        [
+          -115.175532,
+          36.097231
+        ],
+        [
+          -115.17387,
+          36.100091
+        ],
+        [
+          -115.173506,
+          36.099756
+        ],
+        [
+          -115.173356,
+          36.100013
+        ],
+        [
+          -115.173831,
+          36.10045
+        ],
+        [
+          -115.176972,
+          36.099334
+        ],
+        [
+          -115.176023,
+          36.097591
+        ],
+        [
+          -115.178176,
+          36.096066
+        ],
+        [
+          -115.176754,
+          36.093454
+        ]
+      ]
+    ],
+    "type": "Polygon"
+  },
+  "properties": {
+    "accuracy": "point",
+    "confidence": 0.8,
+    "continent": "North America",
+    "continent_gid": "whosonfirst:continent:102191575",
+    "country": "United States",
+    "country_a": "USA",
+    "country_gid": "whosonfirst:country:85633793",
+    "county": "Clark County",
+    "county_a": "CL",
+    "county_gid": "whosonfirst:county:102081553",
+    "distance": 0.033,
+    "gid": "openstreetmap:address:node:4829551221",
+    "housenumber": "3940",
+    "id": "node:4829551221",
+    "input_centroid": [
+      "-115.17674106598884",
+      "36.09294888970336"
+    ],
+    "label": "3940 Las Vegas Boulevard, Paradise, NV, USA",
+    "layer": "address",
+    "locality": "Paradise",
+    "locality_gid": "whosonfirst:locality:85975035",
+    "name": "3940 Las Vegas Boulevard",
+    "neighbourhood": "Boulder Junction",
+    "neighbourhood_gid": "whosonfirst:neighbourhood:85806789",
+    "postalcode": "89119",
+    "region": "Nevada",
+    "region_a": "NV",
+    "region_gid": "whosonfirst:region:85688531",
+    "row_id": "141226",
+    "source": "openstreetmap",
+    "source_id": "node:4829551221",
+    "street": "Las Vegas Boulevard"
+  },
+  "type": "Feature"
+}
