@@ -1,8 +1,9 @@
 ## Problem Statement :
 
-The Array of things (AoT) project is an urban sensing project involving collaboration of the University of Chicago, Argonne National Laboratory, and the School of the Art Institute of Chicago. As part of the new Smart Cities Initiative announced in 2015, AoT will provide real-time, location-based data about urban environment, infrastructure and activity to researchers and the public. This initiative has the potential to allow researchers, policymakers, developers and residents to work together and take specific actions that will make cities healthier, more efficient and more livable.
+The Array of things (AoT) project is an urban sensing project involving collaboration of the University of Chicago, Argonne National Laboratory, and the School of the Art Institute of Chicago. As part of the new Smart Cities Initiative announced in 2015, AoT provides real-time, location-based data about urban environment, infrastructure and activity to researchers and the public. This initiative has the potential to allow researchers, policymakers, developers and residents to work together and take specific actions that will make cities healthier, more efficient and more livable.
 
- As part of the project, a network of interactive, modular sensor boxes is installed around Chicago to collect real-time data of the city’s environment, infrastructure, and activity. The first set of nodes started measuring factors such as barometric pressure, light, carbon monoxide, ambient sound, and temperature since 2017.  In partnership with the City of Chicago, a total of 500 nodes will be mounted on street light traffic signal poles around the city over two to three years timespan.
+As part of the project, a network of interactive, modular sensor boxes is installed around Chicago to collect real-time data of the city’s environment, infrastructure, and activity. The first set of nodes started measuring factors such as barometric pressure, light, carbon monoxide, ambient sound, and temperature since 2017.  In partnership with the City of Chicago, a total of 500 nodes will be mounted on street light traffic signal poles around the city over two to three years timespan.
+
 Our capstone project is about developing a methodology for analyzing health of these AoT Nodes, identifying various factors affecting the health of the Nodes, and predicting malfunction within a given future time period. 
  
 Currently AoT project lacks 
@@ -17,12 +18,12 @@ These shortcomings slow down AoT project’s efforts in designing and installing
 
 ## Research Purpose:
 
-The purpose of this research is to develop an analytical tool that could enable data-driven evaluation of the existing AoT Node health and explain the various factors affecting Node’s health. In addition, we will develop analytical tools that can effectively predict possible malfunctions based on historical data. Lastly, we might develop analytical tools to predict sensor readings in case of a malfunction. In particular, the research aims to achieve the following objectives:
-Define the health of sensor nodes and develop an automated data analysis method  to label  malfunctions in  a given Node
-Develop a classification method to predict malfunctioning node and explain various factors that are common across malfunctioning nodes. Some examples of factors affecting the AoT Node health are : types of sensors on the node, installation date, manufacturer’s brand, weather conditions, and node location.
-Develop a tool to predict remaining lifetime of an AoT Node given characteristics such as manufacturer’s brand, weather conditions, location and other factors identified in Step 2.
-Impute sensor readings using analytical tools developed, in case of a malfunction and when appropriate.
+The purpose of this research is to develop an analytical tool that enable data-driven evaluation of the existing AoT Node health and explain the various factors affecting Node’s health. In addition, we developed analytical tools to predict sensor readings in case of a malfunction. In particular, the research achieved the following objectives:
 
+1) Define the health of sensor nodes and develop an automated data analysis method  to label  malfunctions in  a given Node
+2) Develop a classification method to predict malfunctioning node and explain various factors that are common across malfunctioning nodes. Some examples of factors affecting the AoT Node health are : types of sensors on the node, installation date, manufacturer’s brand, weather conditions, and node location.
+2) Develop a tool to predict remaining lifetime of an AoT Node given characteristics such as manufacturer’s brand, weather conditions, location and other factors identified in Step 2.
+Impute sensor readings using analytical tools developed, in case of a malfunction and when appropriate.
 
 ### Data Format: 
 
